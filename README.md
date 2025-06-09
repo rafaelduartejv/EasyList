@@ -1,22 +1,8 @@
-```markdown
-# Secure Login System
+Secure Login System
 
 A secure login system built with **Spring Boot**, **Spring Security**, and **JWT** authentication. This project provides user registration, login, and role-based access control, with API documentation generated using **Swagger UI** (springdoc-openapi).
 
-## Table of Contents
-- [Features](#features)
-- [Technologies](#technologies)
-- [Prerequisites](#prerequisites)
-- [Setup and Installation](#setup-and-installation)
-- [Running the Application](#running-the-application)
-- [API Documentation](#api-documentation)
-- [Testing the API](#testing-the-api)
-- [Project Structure](#project-structure)
-- [Troubleshooting](#troubleshooting)
-- [Contributing](#contributing)
-- [License](#license)
-
-## Features
+ Features
 - User registration with role assignment (e.g., `ROLE_USER`, `ROLE_ADMIN`).
 - User login with JWT token generation.
 - Role-based access control for protected endpoints.
@@ -35,13 +21,13 @@ A secure login system built with **Spring Boot**, **Spring Security**, and **JWT
 - **Lombok**
 - **Maven**
 
-## Prerequisites
+ Prerequisites
 - **Java 17** installed (e.g., OpenJDK or Oracle JDK).
 - **Maven** installed (version 3.8+ recommended).
 - **PostgreSQL** installed and running.
 - **Postman** or a similar tool for API testing (optional).
 
-## Setup and Installation
+ Setup and Installation
 1. **Clone the Repository**:
    ```bash
    git clone https://github.com/your-username/secure-login-system.git
