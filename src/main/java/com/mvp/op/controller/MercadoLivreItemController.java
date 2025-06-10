@@ -4,6 +4,10 @@ import com.mvp.op.model.DraftItem;
 import com.mvp.op.model.MercadoLivreToken;
 import com.mvp.op.repository.DraftItemRepository;
 import com.mvp.op.repository.MercadoLivreTokenRepository;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
@@ -11,6 +15,7 @@ import org.springframework.web.client.RestTemplate;
 
 import java.util.*;
 
+@Tag(name = "Mercado Livre Items", description = "Endpoints for managing Mercado Livre item drafts and publishing")
 @RestController
 @RequestMapping("/items")
 public class MercadoLivreItemController {
@@ -22,7 +27,12 @@ public class MercadoLivreItemController {
     private MercadoLivreTokenRepository tokenRepository;
 
     @PostMapping("/clone/{itemId}")
-    public ResponseEntity<?> cloneItem(@PathVariable String itemId, @RequestParam Long userId) {
+    @Operation(summary = "Clone a Mercado Livre item", description = "Clones an existing Mercado Livre item and saves it as a draft")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Item cloned and saved as draft successfully"),
+            @ApiResponse(responseCode = "404", description = "Token not found for the user"),
+            @ApiResponse(responseCode = "400", description = "Invalid item ID or API error")
+    })    public ResponseEntity<?> cloneItem(@PathVariable String itemId, @RequestParam Long userId) {
         MercadoLivreToken token = tokenRepository.findById(userId).orElse(null);
         if (token == null) return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Token não encontrado");
 
@@ -62,7 +72,11 @@ public class MercadoLivreItemController {
     }
 
     @PutMapping("/drafts/{id}")
-    public ResponseEntity<?> editDraft(@PathVariable Long id, @RequestBody DraftItem updatedDraft) {
+    @Operation(summary = "Edit a draft item", description = "Updates an existing draft item with new details")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Draft updated successfully"),
+            @ApiResponse(responseCode = "404", description = "Draft not found")
+    })    public ResponseEntity<?> editDraft(@PathVariable Long id, @RequestBody DraftItem updatedDraft) {
         DraftItem draft = draftItemRepository.findById(id).orElse(null);
         if (draft == null) return ResponseEntity.notFound().build();
 
@@ -77,7 +91,12 @@ public class MercadoLivreItemController {
     }
 
     @PostMapping("/publish/{draftId}")
-    public ResponseEntity<?> publishDraft(@PathVariable Long draftId) {
+    @Operation(summary = "Publish a draft item", description = "Publishes a draft item as a new listing on Mercado Livre")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Draft published successfully"),
+            @ApiResponse(responseCode = "404", description = "Draft or token not found"),
+            @ApiResponse(responseCode = "400", description = "Error during publication")
+    })    public ResponseEntity<?> publishDraft(@PathVariable Long draftId) {
         DraftItem draft = draftItemRepository.findById(draftId).orElse(null);
         if (draft == null) return ResponseEntity.notFound().build();
 
@@ -108,7 +127,11 @@ public class MercadoLivreItemController {
     }
 
     @GetMapping("/drafts/user/{userId}")
-    public ResponseEntity<?> listUserDrafts(@PathVariable Long userId) {
+    @Operation(summary = "List user drafts", description = "Retrieves all draft items for a specific user")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Drafts retrieved successfully"),
+            @ApiResponse(responseCode = "404", description = "No drafts found for the user")
+    })    public ResponseEntity<?> listUserDrafts(@PathVariable Long userId) {
         return ResponseEntity.ok(draftItemRepository.findByUserId(userId));
     }
 }

@@ -5,6 +5,10 @@ import com.mvp.op.dto.AuthResponseMercadoLivre;
 import com.mvp.op.model.MercadoLivreToken;
 import com.mvp.op.repository.MercadoLivreTokenRepository;
 import com.mvp.op.util.PkceUtil;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -17,6 +21,7 @@ import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+@Tag(name = "Mercado Livre Authentication", description = "Endpoints for Mercado Livre OAuth 2.0 authentication")
 @RestController
 @RequestMapping("/auth")
 public class AuthControllerMercadoLivre {
@@ -37,6 +42,11 @@ public class AuthControllerMercadoLivre {
     private final Map<String, String> verifierStore = new ConcurrentHashMap<>();
 
     @GetMapping("/login")
+    @Operation(summary = "Initiate Mercado Livre OAuth login", description = "Redirects the user to Mercado Livre's authorization page with PKCE")
+    @ApiResponses({
+            @ApiResponse(responseCode = "302", description = "Redirects to Mercado Livre authorization page"),
+            @ApiResponse(responseCode = "500", description = "Internal server error during redirect")
+    })
     public void login(HttpServletResponse response) throws IOException {
         String codeVerifier = PkceUtil.generateCodeVerifier();
         String codeChallenge = PkceUtil.generateCodeChallenge(codeVerifier);
@@ -53,12 +63,23 @@ public class AuthControllerMercadoLivre {
     }
 
     @GetMapping("/callback")
+    @Operation(summary = "Handle OAuth callback", description = "Receives the authorization code from Mercado Livre and returns it for token exchange")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Authorization code received successfully"),
+            @ApiResponse(responseCode = "400", description = "Invalid or missing authorization code")
+    })
     public ResponseEntity<String> callback(@RequestParam String code) {
         // Salva o code recebido para troca posterior
         return ResponseEntity.ok("Código recebido: " + code + "\nUse este código para fazer a troca no /auth/token");
     }
 
     @PostMapping("/token")
+    @Operation(summary = "Exchange authorization code for token", description = "Exchanges the authorization code for an access token and refresh token from Mercado Livre")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Token exchanged and saved successfully"),
+            @ApiResponse(responseCode = "400", description = "Invalid code or code_verifier not found"),
+            @ApiResponse(responseCode = "500", description = "Error during token exchange")
+    })
     public ResponseEntity<?> exchangeToken(@RequestBody AuthRequestMercadoLivre request) {
         RestTemplate restTemplate = new RestTemplate();
 
@@ -106,6 +127,12 @@ public class AuthControllerMercadoLivre {
 
 
     @GetMapping("/user-info/{userId}")
+    @Operation(summary = "Get Mercado Livre user info", description = "Retrieves user information from Mercado Livre using the stored access token")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "User information retrieved successfully"),
+            @ApiResponse(responseCode = "404", description = "Token not found for the user"),
+            @ApiResponse(responseCode = "401", description = "Invalid or expired access token")
+    })
     public ResponseEntity<?> getUserInfo(@PathVariable Long userId) {
         MercadoLivreToken token = tokenRepository.findById(userId).orElse(null);
         if (token == null) return ResponseEntity.notFound().build();
