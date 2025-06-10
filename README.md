@@ -28,22 +28,22 @@
 ---
 
 ## 🧱 Estrutura de Pacotes
+
+```plaintext
 easylist/
-├── controller/      
-├── dto/              
-├── exception/     
-├── model/          
-├── repository/         
-├── security/ 
-├── service/
-├── util/
+├── controller/                          # Controladores REST (AuthController, ItemController)
+├── dto/                                 # Data Transfer Objects (Request/Response)
+├── exception/                           # Tratamento global de exceções
+├── model/                               # Entidades JPA (User, Token, DraftItem)
+├── repository/                          # Repositórios Spring Data JPA
+├── security/                            # Configuração do Spring Security e filtros JWT
+├── service/                             # Lógica de negócios (auth, integração ML)
+├── util/                                # Utilitários diversos (ex: geração de PKCE)
 ├── resources/
-│   └── application.properties
-└── pom.xml
-
-
+│   └── application.properties           # Configuração da aplicação
+└── pom.xml                              # Gerenciamento de dependências Maven
 ---
-
+```
 ## 🛠️ Tecnologias Utilizadas
 
 - Java 17  
