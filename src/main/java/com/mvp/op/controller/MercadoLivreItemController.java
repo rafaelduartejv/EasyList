@@ -1,31 +1,114 @@
 package com.mvp.op.controller;
 
-import com.mvp.op.service.MercadoLivreItemService;
+import com.mvp.op.model.DraftItem;
+import com.mvp.op.model.MercadoLivreToken;
+import com.mvp.op.repository.DraftItemRepository;
+import com.mvp.op.repository.MercadoLivreTokenRepository;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.client.RestTemplate;
 
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @RestController
-@RequestMapping("/mercadolivre")
+@RequestMapping("/items")
 public class MercadoLivreItemController {
 
     @Autowired
-    private MercadoLivreItemService itemService;
+    private DraftItemRepository draftItemRepository;
 
-    // Recebe userId e lista de itemIds para copiar anúncios em lote
-    @PostMapping("/copiar-anuncios/{userId}")
-    public ResponseEntity<?> copiarAnunciosParaUsuario(
-            @PathVariable Long userId,
-            @RequestBody List<String> itemIds
-    ) {
-        try {
-            List<Map<String, Object>> resultados = itemService.copiarAnuncios(userId, itemIds);
-            return ResponseEntity.ok(resultados);
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of("erro", e.getMessage()));
+    @Autowired
+    private MercadoLivreTokenRepository tokenRepository;
+
+    @PostMapping("/clone/{itemId}")
+    public ResponseEntity<?> cloneItem(@PathVariable String itemId, @RequestParam Long userId) {
+        MercadoLivreToken token = tokenRepository.findById(userId).orElse(null);
+        if (token == null) return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Token não encontrado");
+
+        RestTemplate restTemplate = new RestTemplate();
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(token.getAccessToken());
+        HttpEntity<Void> entity = new HttpEntity<>(headers);
+
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "https://api.mercadolibre.com/items/" + itemId,
+                HttpMethod.GET, entity, Map.class);
+
+        Map<String, Object> item = response.getBody();
+
+        DraftItem draft = new DraftItem();
+        draft.setUserId(userId);
+        draft.setTitle((String) item.get("title"));
+        draft.setCategoryId((String) item.get("category_id"));
+        draft.setCondition((String) item.get("condition"));
+        draft.setPrice(Double.valueOf(item.get("price").toString()));
+        draft.setAvailableQuantity((Integer) item.get("available_quantity"));
+        draft.setListingTypeId((String) item.get("listing_type_id"));
+        draft.setOriginalItemId(itemId);
+
+        List<Map<String, String>> pictures = (List<Map<String, String>>) item.get("pictures");
+        List<String> pictureUrls = pictures.stream().map(pic -> pic.get("url")).toList();
+        draft.setPictures(pictureUrls);
+
+        String descUrl = "https://api.mercadolibre.com/items/" + itemId + "/description";
+        ResponseEntity<Map> descResp = restTemplate.exchange(descUrl, HttpMethod.GET, entity, Map.class);
+        if (descResp.getStatusCode().is2xxSuccessful()) {
+            draft.setDescription((String) descResp.getBody().get("plain_text"));
         }
+
+        draftItemRepository.save(draft);
+        return ResponseEntity.ok(draft);
+    }
+
+    @PutMapping("/drafts/{id}")
+    public ResponseEntity<?> editDraft(@PathVariable Long id, @RequestBody DraftItem updatedDraft) {
+        DraftItem draft = draftItemRepository.findById(id).orElse(null);
+        if (draft == null) return ResponseEntity.notFound().build();
+
+        draft.setTitle(updatedDraft.getTitle());
+        draft.setPrice(updatedDraft.getPrice());
+        draft.setDescription(updatedDraft.getDescription());
+        draft.setAvailableQuantity(updatedDraft.getAvailableQuantity());
+        draft.setPictures(updatedDraft.getPictures());
+
+        draftItemRepository.save(draft);
+        return ResponseEntity.ok(draft);
+    }
+
+    @PostMapping("/publish/{draftId}")
+    public ResponseEntity<?> publishDraft(@PathVariable Long draftId) {
+        DraftItem draft = draftItemRepository.findById(draftId).orElse(null);
+        if (draft == null) return ResponseEntity.notFound().build();
+
+        MercadoLivreToken token = tokenRepository.findById(draft.getUserId()).orElse(null);
+        if (token == null) return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Token não encontrado");
+
+        RestTemplate restTemplate = new RestTemplate();
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(token.getAccessToken());
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("title", draft.getTitle());
+        payload.put("category_id", draft.getCategoryId());
+        payload.put("price", draft.getPrice());
+        payload.put("currency_id", "BRL");
+        payload.put("available_quantity", draft.getAvailableQuantity());
+        payload.put("condition", draft.getCondition());
+        payload.put("listing_type_id", draft.getListingTypeId());
+        payload.put("description", Map.of("plain_text", draft.getDescription()));
+        payload.put("pictures", draft.getPictures().stream().map(url -> Map.of("source", url)).toList());
+
+        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(payload, headers);
+        ResponseEntity<Map> response = restTemplate.postForEntity(
+                "https://api.mercadolibre.com/items", entity, Map.class);
+
+        return ResponseEntity.ok(response.getBody());
+    }
+
+    @GetMapping("/drafts/user/{userId}")
+    public ResponseEntity<?> listUserDrafts(@PathVariable Long userId) {
+        return ResponseEntity.ok(draftItemRepository.findByUserId(userId));
     }
 }
