@@ -1,6 +1,6 @@
-Secure Login System
+EasyList
 
-A secure login system built with **Spring Boot**, **Spring Security**, and **JWT** authentication. This project provides user registration, login, and role-based access control, with API documentation generated using **Swagger UI** (springdoc-openapi).
+EasyList with **Spring Boot**, **Spring Security**, and **JWT** authentication. This project provides user registration, login, and role-based access control, with API documentation generated using **Swagger UI** (springdoc-openapi).
 
  Features
 - User registration with role assignment (e.g., `ROLE_USER`, `ROLE_ADMIN`).
