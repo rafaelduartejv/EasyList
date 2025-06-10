@@ -2,14 +2,18 @@ package com.mvp.op.controller;
 
 import com.mvp.op.dto.AuthRequestMercadoLivre;
 import com.mvp.op.dto.AuthResponseMercadoLivre;
+import com.mvp.op.model.MercadoLivreToken;
+import com.mvp.op.repository.MercadoLivreTokenRepository;
 import com.mvp.op.util.PkceUtil;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestTemplate;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -25,6 +29,9 @@ public class AuthControllerMercadoLivre {
 
     @Value("${ml.redirect-uri}")
     private String redirectUri;
+
+    @Autowired
+    private MercadoLivreTokenRepository tokenRepository;
 
     // Simula armazenamento temporário do code_verifier
     private final Map<String, String> verifierStore = new ConcurrentHashMap<>();
@@ -55,7 +62,11 @@ public class AuthControllerMercadoLivre {
     public ResponseEntity<?> exchangeToken(@RequestBody AuthRequestMercadoLivre request) {
         RestTemplate restTemplate = new RestTemplate();
 
-        String codeVerifier = verifierStore.get("session"); // ou por ID de usuário real
+        // Recupera o code_verifier da sessão simulada
+        String codeVerifier = verifierStore.get("session");
+        if (codeVerifier == null) {
+            return ResponseEntity.badRequest().body("code_verifier não encontrado (verifique se o /login foi acessado)");
+        }
 
         String url = "https://api.mercadolibre.com/oauth/token";
         HttpHeaders headers = new HttpHeaders();
@@ -72,9 +83,43 @@ public class AuthControllerMercadoLivre {
             ResponseEntity<AuthResponseMercadoLivre> response = restTemplate.exchange(
                     url, HttpMethod.POST, entity, AuthResponseMercadoLivre.class
             );
-            return ResponseEntity.ok(response.getBody());
+
+            AuthResponseMercadoLivre tokenData = response.getBody();
+
+            // Salvar token no banco
+            MercadoLivreToken token = new MercadoLivreToken();
+            token.setUserId(tokenData.getUserId());
+            token.setAccessToken(tokenData.getAccessToken());
+            token.setRefreshToken(tokenData.getRefreshToken());
+            token.setExpiresAt(LocalDateTime.now().plusSeconds(tokenData.getExpiresIn()));
+
+            tokenRepository.save(token);
+
+            return ResponseEntity.ok(tokenData);
+
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Erro ao trocar token: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body("Erro ao trocar token: " + e.getMessage());
         }
     }
+
+
+
+    @GetMapping("/user-info/{userId}")
+    public ResponseEntity<?> getUserInfo(@PathVariable Long userId) {
+        MercadoLivreToken token = tokenRepository.findById(userId).orElse(null);
+        if (token == null) return ResponseEntity.notFound().build();
+
+        RestTemplate restTemplate = new RestTemplate();
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(token.getAccessToken());
+        HttpEntity<Void> entity = new HttpEntity<>(headers);
+
+        ResponseEntity<String> response = restTemplate.exchange(
+                "https://api.mercadolibre.com/users/me", HttpMethod.GET, entity, String.class
+        );
+
+        return ResponseEntity.ok(response.getBody());
+    }
+
 }
