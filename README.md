@@ -97,20 +97,4 @@ cd easylist
 - springdoc.swagger-ui.enabled=true
 - springdoc.packages-to-scan=com.mvp.op.controller
 
-### 🧪 Endpoints Importantes
-
-🔑 Autenticação
-
-
-- POST	/api/auth/register	Registro de novo usuário
-- POST	/api/auth/login	Login com JWT
-- GET	/auth/login	Inicia OAuth com Mercado Livre
-- POST	/auth/token	Recebe code e gera access_token
-
-🛒 Anúncios
-
-- POST	/items/clone/{itemId}?userId={userId}	Clona um anúncio e salva como draft
-- PUT	/items/drafts/{id}	Edita um draft
-- POST	/items/publish/{draftId}	Publica um draft
-- GET	/items/drafts/user/{userId}	Lista drafts do usuário
 
